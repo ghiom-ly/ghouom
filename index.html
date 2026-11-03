@@ -44,7 +44,10 @@ button.g{background:var(--gold);color:#1a1405}
 
 <div id="app" hidden>
   <div class="row"><h1 style="flex:3">لوحة تحكم غيوم</h1><button id="out" style="flex:1">خروج</button></div>
-  <div class="card row"><input id="shop" readonly dir="ltr" aria-label="رابط المتجر"><button id="cp" class="g" style="flex:0 0 auto">نسخ رابط المتجر</button></div>
+  <div class="card">
+    <div class="row" style="margin-bottom:8px"><input id="shop" readonly dir="ltr" aria-label="رابط المتجر (admin.html)"><button id="cp" class="g" style="flex:0 0 auto">نسخ</button><a id="shopLink" href="#" target="_blank" rel="noopener" style="flex:0 0 auto;padding:10px 16px;border-radius:999px;border:1.5px solid var(--gold);color:var(--gold2);text-decoration:none;white-space:nowrap;min-height:44px;display:flex;align-items:center">فتح المتجر ↗</a></div>
+    <div class="row"><input id="shop2" readonly dir="ltr" aria-label="رابط المتجر (index.html1)"><button id="cp2" class="g" style="flex:0 0 auto">نسخ</button><a id="shopLink2" href="#" target="_blank" rel="noopener" style="flex:0 0 auto;padding:10px 16px;border-radius:999px;border:1.5px solid var(--gold);color:var(--gold2);text-decoration:none;white-space:nowrap;min-height:44px;display:flex;align-items:center">فتح ↗</a></div>
+  </div>
   <div class="tabs" id="tabs">
     <button data-t="orders">الطلبات</button><button data-t="products">المنتجات</button><button data-t="contact">التواصل</button><button data-t="faq">الأسئلة</button><button data-t="reviews">الآراء</button>
   </div>
@@ -61,8 +64,14 @@ const $ = s => document.querySelector(s);
 const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ST = ['جديد', 'قيد التجهيز', 'تم الشحن', 'مكتمل', 'ملغي'];
 const wa = p => { p = String(p || '').replace(/\D/g, '').replace(/^00/, ''); return /^0\d{9}$/.test(p) ? '218' + p.slice(1) : p; };
-$('#shop').value = location.href.replace(/admin\.html.*$/, '');
-$('#cp').onclick = async () => { try { await navigator.clipboard.writeText($('#shop').value); msg('تم نسخ رابط المتجر.'); } catch (_) { $('#shop').select(); msg('انسخ الرابط يدوياً.'); } };
+const base = location.href.replace(/(index|admin)\.html.*$/, '');
+$('#shop').value = base + 'admin.html';
+$('#shopLink').href = base + 'admin.html';
+$('#shop2').value = base + 'index.html1';
+$('#shopLink2').href = base + 'index.html1';
+const copyLink = async (id) => { try { await navigator.clipboard.writeText($('#' + id).value); msg('تم نسخ الرابط.'); } catch (_) { $('#' + id).select(); msg('انسخ الرابط يدوياً.'); } };
+$('#cp').onclick = () => copyLink('shop');
+$('#cp2').onclick = () => copyLink('shop2');
 const msg = (t) => { $('#msg').textContent = t || ''; };
 
 async function api(action, data) {
