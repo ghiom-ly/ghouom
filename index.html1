@@ -314,7 +314,7 @@ function render(){
 }
 render();
 /* رابط Google Apps Script: الصقه هنا بين علامتي الاقتباس */
-const SHEET_URL="https://script.google.com/macros/s/AKfycbzHi-dPSDU091ffnqgYEV7dmUDU2nY8blevFuEloLkFDtXg0yLgsgePeMSAGWB48wmN1Q/exec";
+const SHEET_URL="https://script.google.com/macros/s/AKfycbwTg5OSUzLBomNAfxii1Rx0CRSPK7HT98Brkk-9E3W0XwAYNHJOjwkzcZ-FgEBm1WNN/exec";
 if(SHEET_URL){const lb=document.getElementById('lbar');if(lb)lb.className='lbar run';fetch(SHEET_URL).then(r=>r.json()).then(o=>{CFG={...CFG,...o,product:{...CFG.product,...(o.product||{})}};render()}).catch(()=>{}).finally(()=>{if(lb){lb.className='lbar done';setTimeout(()=>{lb.style.opacity='0'},400)}})}
 /* order modal */
 const modal=$('#modal'),form=$('#form');let lastFocus,summary='';
