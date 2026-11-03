@@ -76,6 +76,7 @@ const msg = (t) => { $('#msg').textContent = t || ''; };
 
 async function api(action, data) {
   const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action, pw: PW, ...data }) });
+  if (!r.ok) throw new Error('http_' + r.status);
   const j = await r.json();
   if (!j.ok) throw new Error(j.error || 'fail');
   return j;
@@ -131,7 +132,17 @@ function productSettings() {
     'الخيارات': (P.options || []).map(x => x.label + ': ' + x.values.join('، ')).join('\n'),
     'الصور': (P.images || []).join('\n'), 'صورة الواجهة': CFG.heroImage || '' };
 }
-async function run(fn, ok) { try { msg('جارٍ الحفظ...'); await fn(); msg(ok || 'تم الحفظ. قد يلزم تحديث الموقع بضع ثوانٍ.'); } catch (e) { msg(e.message === 'auth' ? 'انتهت الجلسة، أعد الدخول.' : 'تعذّر الحفظ.'); } }
+async function run(fn, ok) {
+  try { msg('جارٍ الحفظ...'); await fn(); msg(ok || 'تم الحفظ. قد يلزم تحديث الموقع بضع ثوانٍ.'); }
+  catch (e) {
+    const code = e.message;
+    if (code === 'auth') msg('انتهت الجلسة، أعد الدخول.');
+    else if (code === 'locked') msg('الحساب محجوب مؤقتاً بسبب محاولات متعددة. حاول بعد 15 دقيقة.');
+    else if (code === 'unknown') msg('تعذّر الحفظ: الأمر غير معروف. تأكد من نشر نسخة جديدة من Apps Script.');
+    else if (code && code.startsWith('http_')) msg('تعذّر الاتصال بالخادم (خطأ ' + code.slice(5) + '). تأكد من رابط Apps Script.');
+    else msg('تعذّر الحفظ: ' + (code || 'خطأ غير محدد'));
+  }
+}
 
 function renderProducts() {
   const B = $('#body'), prods = CFG.products || [];
