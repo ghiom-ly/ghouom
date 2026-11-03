@@ -51,8 +51,24 @@ function setup() {
   mk('الإعدادات', KEYS.map(k => [k, k === 'الاسم' ? 'اسم المنتج' : '']));
   mk('الأسئلة', [['السؤال', 'الجواب']]);
   mk('الآراء', [['الاسم', 'النجوم', 'التعليق']]);
+  mk('المنتجات', [['json']]);
   SS.getSheetByName('الإعدادات').getRange('B:B').setNumberFormat('@');
   DriveApp.getRootFolder();
+}
+
+function getProducts() {
+  const sh = SS.getSheetByName('المنتجات');
+  if (!sh || sh.getLastRow() < 2) return [];
+  try {
+    const raw = String(sh.getRange(2, 1).getValue() || '');
+    return raw ? JSON.parse(raw).slice(0, 100) : [];
+  } catch (_) { return []; }
+}
+
+function saveProducts(arr) {
+  const sh = SS.getSheetByName('المنتجات') || SS.insertSheet('المنتجات');
+  if (sh.getLastRow() === 0) sh.getRange(1, 1).setValue('json');
+  sh.getRange(2, 1).setNumberFormat('@').setValue(JSON.stringify(arr.slice(0, 100)));
 }
 
 function kvMap() {
@@ -96,6 +112,8 @@ function doGet() {
   if (faq.length) res.faq = faq;
   const rev = getRows('الآراء').filter(r => r[0] && r[2]).map(r => ({ name: String(r[0]), stars: Math.min(5, Math.max(1, parseInt(r[1]) || 5)), text: String(r[2]) })).slice(0, 50);
   if (rev.length) res.reviews = rev;
+  const prods = getProducts();
+  if (prods.length) res.products = prods;
   return out(res);
 }
 
@@ -146,6 +164,22 @@ function doPost(e) {
   }
 
   if (o.action === 'save') { setKV(o.settings || {}); return out({ ok: true }); }
+
+  if (o.action === 'saveProducts') {
+    const arr = (o.products || []).slice(0, 100).map(p => ({
+      name: trim(p.name || '').slice(0, 200),
+      desc: trim(p.desc || '').slice(0, 1000),
+      price: trim(p.price || '').slice(0, 100),
+      oldPrice: trim(p.oldPrice || '').slice(0, 100),
+      images: (p.images || []).slice(0, 20).map(u => String(u).slice(0, 500)),
+      options: (p.options || []).slice(0, 10).map(opt => ({
+        label: String(opt.label || '').slice(0, 100),
+        values: (opt.values || []).slice(0, 20).map(v => String(v).slice(0, 100))
+      }))
+    }));
+    saveProducts(arr);
+    return out({ ok: true });
+  }
 
   if (o.action === 'faq' || o.action === 'reviews') {
     const sh = SS.getSheetByName(o.action === 'faq' ? 'الأسئلة' : 'الآراء');
