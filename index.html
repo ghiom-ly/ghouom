@@ -141,12 +141,18 @@ function renderProducts() {
 }
 function prodForm(idx) {
   const p = idx >= 0 ? (CFG.products || [])[idx] : {};
+  const imgs = p.images || [];
+  const thumbs = imgs.map((u, i) => `<div style="position:relative;width:80px;height:80px;flex-shrink:0"><img src="${esc(u)}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;border:1px solid var(--line)"><b data-pri="${i}" style="position:absolute;top:-8px;left:-8px;width:24px;height:24px;border-radius:50%;background:var(--gold);color:#1a1405;text-align:center;line-height:24px;cursor:pointer;font-size:14px">×</b></div>`).join('');
   $('#pf').innerHTML = `<div class="card"><b>${idx < 0 ? 'منتج جديد' : 'تعديل المنتج'}</b>` +
     F('pfn', 'اسم المنتج', p.name || '') + F('pfd', 'الوصف', p.desc || '', 3) +
     `<div class="r2"><div>${F('pfp', 'السعر', p.price || '')}</div><div>${F('pfo', 'السعر قبل الخصم', p.oldPrice || '')}</div></div>` +
-    F('pfi', 'روابط الصور (سطر لكل صورة)', (p.images || []).join('\n'), 3) +
+    `<label>صور المنتج</label><div id="pfThumbs" style="display:flex;gap:10px;flex-wrap:wrap;margin:8px 0">${thumbs}</div>` +
+    `<input type="file" id="pfup" accept="image/*" style="margin-bottom:6px"><p class="note" style="margin:0 0 8px">اختر صورة لرفعها مباشرة إلى Google Drive</p>` +
     F('pfop', 'الخيارات: سطر لكل خيار، مثال: اللون: أخضر، أسود', (p.options || []).map(x => x.label + ': ' + x.values.join('، ')).join('\n'), 3) +
     `<input type="hidden" id="pfi2" value="${idx}"><p style="display:flex;gap:8px"><button class="g" id="pfsave">حفظ المنتج</button><button id="pfcan">إلغاء</button></p></div>`;
+}
+function getProdImages() {
+  return Array.from(document.querySelectorAll('#pfThumbs img')).map(i => i.src).filter(Boolean);
 }
 async function saveProduct() {
   const idx = parseInt($('#pfi2').value);
@@ -154,7 +160,7 @@ async function saveProduct() {
   const L2 = id => g2(id).split('\n').map(x => x.trim()).filter(Boolean);
   const p = {
     name: g2('pfn'), desc: g2('pfd'), price: g2('pfp'), oldPrice: g2('pfo'),
-    images: L2('pfi').slice(0, 20),
+    images: getProdImages(),
     options: L2('pfop').map(l => { const [a, ...b] = l.split(':'); return { label: a.trim(), values: (b.join(':') || '').split(/[،,]/).map(x => x.trim()).filter(Boolean) }; }).filter(o => o.values.length)
   };
   if (!p.name) { msg('يرجى كتابة اسم المنتج.'); return; }
@@ -181,6 +187,7 @@ $('#body').addEventListener('click', async e => {
   if (t.dataset && t.dataset.pd !== undefined) { if (confirm('حذف هذا المنتج نهائيًا؟')) { CFG.products.splice(+t.dataset.pd, 1); await run(() => api('saveProducts', { products: CFG.products }), 'تم حذف المنتج.'); renderProducts(); } return; }
   if (t.id === 'pfsave') { await saveProduct(); return; }
   if (t.id === 'pfcan') { $('#pf').innerHTML = ''; return; }
+  if (t.dataset && t.dataset.pri !== undefined) { t.closest('div').remove(); return; }
   if (t.id !== 'save') return;
   if (tab === 'product') await run(() => api('save', { settings: productSettings() }));
   if (tab === 'contact') { CFG.whatsapp = g('w').replace(/\D/g, ''); CFG.social = lines('s').map(l => { const a = l.split('|'); return { name: a[0].trim(), url: (a[1] || '').trim() }; }).filter(x => /^https?:\/\//.test(x.url)); await run(() => api('save', { settings: { 'واتساب': CFG.whatsapp, 'حسابات التواصل': CFG.social.map(x => x.name + ' | ' + x.url).join('\n') } })); }
@@ -198,6 +205,22 @@ $('#body').addEventListener('change', async e => {
       if (t.id === 'up') (CFG.product.images = CFG.product.images || []).push(r.url); else CFG.heroImage = r.url;
       await api('save', { settings: productSettings() }); show('product');
     }, 'تم رفع الصورة وحفظها.');
+  }
+  if (t.id === 'pfup') {
+    const f = t.files[0]; if (!f) return;
+    await run(async () => {
+      msg('جارٍ رفع الصورة...');
+      const r = await api('upload', { mime: 'image/jpeg', data: await shrink(f) });
+      const thumbs = $('#pfThumbs');
+      if (thumbs) {
+        const i = getProdImages().length;
+        const div = document.createElement('div');
+        div.style.cssText = 'position:relative;width:80px;height:80px;flex-shrink:0';
+        div.innerHTML = `<img src="${r.url}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;border:1px solid var(--line)"><b data-pri="${i}" style="position:absolute;top:-8px;left:-8px;width:24px;height:24px;border-radius:50%;background:var(--gold);color:#1a1405;text-align:center;line-height:24px;cursor:pointer;font-size:14px">×</b>`;
+        thumbs.appendChild(div);
+      }
+      t.value = '';
+    }, 'تم رفع الصورة. اضغط "حفظ المنتج" للتأكيد.');
   }
 });
 </script>
