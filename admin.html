@@ -348,9 +348,15 @@ const SHEET_URL="https://script.google.com/macros/s/AKfycbym6Dgs9ZOG1UDGJb4F8vsl
 if(SHEET_URL){const lb=document.getElementById('lbar');if(lb)lb.className='lbar run';fetch(SHEET_URL).then(r=>r.json()).then(o=>{CFG={...CFG,...o,product:{...CFG.product,...(o.product||{})},products:o.products||(CFG.products&&CFG.products.length?CFG.products:[])};if(!CFG.products||!CFG.products.length){const P={...CFG.product};if(P.name&&P.name!=='اسم المنتج')CFG.products=[P];}render()}).catch(()=>{}).finally(()=>{if(lb){lb.className='lbar done';setTimeout(()=>{lb.style.opacity='0'},400)}})}
 /* order modal */
 const modal=$('#modal'),form=$('#form');let lastFocus,summary='';
-function openM(){lastFocus=document.activeElement;const P=CFG.product,ch=Object.entries(chosen);$('#pr').value=P.name+(ch.length?' ('+ch.map(([k,v])=>k+': '+v).join('، ')+')':'');form.hidden=false;$('#ok').hidden=true;$('#err').textContent='';modal.classList.add('open');setTimeout(()=>$('#n').focus(),50)}
+function openM(selStr){lastFocus=document.activeElement;$('#pr').value=selStr||CFG.product.name;form.hidden=false;$('#ok').hidden=true;$('#err').textContent='';modal.classList.add('open');setTimeout(()=>$('#n').focus(),50)}
 function closeM(){modal.classList.remove('open');lastFocus&&lastFocus.focus()}
-document.addEventListener('click',e=>{if(e.target.closest('[data-order]'))openM()});
+document.addEventListener('click',e=>{
+ if(e.target.closest('[data-order]')){openM();return}
+ const buyBtn=e.target.closest('[data-buy]');
+ if(buyBtn){openPDet(+buyBtn.dataset.buy,true);return}
+ const card=e.target.closest('.pcard');
+ if(card&&!e.target.closest('[data-buy]')){const i=+card.dataset.pi;if(!isNaN(i))openPDet(i,false)}
+});
 $('#close').onclick=closeM;modal.addEventListener('click',e=>{if(e.target===modal)closeM()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('open'))closeM()});
 form.addEventListener('submit',async e=>{
@@ -412,38 +418,6 @@ function closeP(){$('#pmodal').classList.remove('open')}
 $('#pclose').onclick=closeP;
 $('#pmodal').addEventListener('click',e=>{if(e.target===$('#pmodal'))closeP()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#pmodal').classList.contains('open'))closeP()});
-$('#close').onclick=closeM;modal.addEventListener('click',e=>{if(e.target===modal)closeM()});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('open'))closeM()});
-form.addEventListener('submit',async e=>{
- e.preventDefault();const v=id=>$('#'+id).value.trim();
- if(!v('n')||!v('ct')||!v('ad')){$('#err').textContent='أكمل الاسم والمدينة والعنوان.';return}
- if(!/^[+\d][\d\s\-()]{5,}$/.test(v('ph'))){$('#err').textContent='أدخل رقم هاتف صحيحًا (أرقام فقط).';return}
- const q=Math.max(1,parseInt(v('qt'))||1),code='GH-'+Date.now().toString(36).toUpperCase().slice(-6);
- summary=`طلب جديد ${code}\nالاسم: ${v('n')}\nالهاتف: ${v('ph')}\nالمدينة: ${v('ct')}\nالعنوان: ${v('ad')}\nالمنتج: ${v('pr')}\nالكمية: ${q}`+(v('nt')?`\nملاحظات: ${v('nt')}`:'');
- let saved=false;
- if(SHEET_URL){try{await fetch(SHEET_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({code,name:v('n'),phone:v('ph'),city:v('ct'),address:v('ad'),product:v('pr'),qty:q,notes:v('nt')})});saved=true}catch(_){}}
- if(db){try{await db.doc('orders/'+code).set({code,name:v('n'),phone:v('ph'),city:v('ct'),address:v('ad'),product:v('pr'),qty:q,notes:v('nt'),status:'جديد',createdAt:Date.now()});saved=true}catch(_){}}
- $('#code').textContent=code;form.hidden=true;$('#ok').hidden=false;
- const link=waUrl(summary);$('#okWa').hidden=!link;$('#copyBtn').hidden=!!(link||saved);if(link)$('#okWa').href=link;
- $('#okMsg').textContent=link?(saved?'سُجّل طلبك. أرسله عبر واتساب لتسريع التأكيد.':'اضغط الزر لإرسال تفاصيل الطلب إلى واتساب المتجر. لا يكتمل الطلب قبل إرسالها.'):saved?'تم تسجيل طلبك، وسيتواصل معك المتجر لتأكيده.':'لم يُرسل الطلب لأي جهة بعد. انسخ التفاصيل وأرسلها للمتجر.';
-});
-$('#copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(summary);$('#copyBtn').textContent='تم النسخ'}catch(_){$('#copyBtn').textContent='تعذّر النسخ'}};
-/* dashboard */
-const D=$('#dash'),dbody=$('#dbody'),ST=['جديد','قيد التجهيز','تم الشحن','مكتمل','ملغي'];
-const msg=(t,bad)=>{const m=$('#dmsg');m.textContent=t;m.style.color=bad?'':'var(--gold2)'};
-const fld=(id,l,v,r)=>`<div class="f"><label for="${id}">${l}</label>${r?`<textarea id="${id}" rows="${r}">${esc(v)}</textarea>`:`<input id="${id}" value="${esc(v)}">`}</div>`;
-const SV='<button class="btn btn-gold" id="sv">حفظ ونشر التغييرات</button>';
-const T={
- orders(){dbody.innerHTML=(db?'':'<p class="note">سجّل الدخول في claude.ai لعرض الطلبات المحفوظة.</p>')+`<div class="oh"><b>${orders.length} طلب</b><button class="btn btn-line" id="csv">تصدير CSV</button></div>`+(orders.length?orders.map(o=>`<div class="ord"><div><b>${esc(o.code)}</b>، ${esc(o.name)}، <a href="tel:${esc(o.phone)}" dir="ltr">${esc(o.phone)}</a></div><div>${esc(o.city)} — ${esc(o.address)}</div><div>${esc(o.product)} × ${esc(o.qty)}${o.notes?' — '+esc(o.notes):''}</div><div class="note">${new Date(o.createdAt).toLocaleString('ar')}</div><div class="orow"><select class="dsel" data-s="${esc(o.id)}">${ST.map(x=>`<option${x===o.status?' selected':''}>${x}</option>`).join('')}</select><button class="x" data-d="${esc(o.id)}" aria-label="حذف الطلب">🗑</button></div></div>`).join(''):'<div class="empty">لا توجد طلبات محفوظة بعد. الطلبات القادمة من زوار غير مسجلين تصلك عبر واتساب فقط.</div>')},
- products(){
-  const prods=CFG.products||[];
-  const addBtn='<button class="btn btn-line" id="addProd" style="padding:6px 14px;min-height:34px;font-size:.9rem">+ إضافة منتج</button>';
-  dbody.innerHTML='<div class="oh"><b>'+prods.length+' منتج</b>'+addBtn+'</div>'+(prods.length?prods.map((p,i)=>'<div class="ord"><div class="oh"><b>'+esc(p.name||'منتج بلا اسم')+'</b><div style="display:flex;gap:6px"><button class="btn btn-line" data-pedit="'+i+'" style="padding:4px 10px;min-height:30px;font-size:.85rem">تعديل</button><button class="x" data-pdel="'+i+'" aria-label="حذف">🗑</button></div></div><span class="note">'+esc(p.price||'السعر غير محدد')+'</span></div>').join(''):'<div class="empty">لا توجد منتجات بعد.</div>')+'<div id="pform"></div>';
- },
- contact(){dbody.innerHTML=fld('wa','رقم واتساب (بالصيغة الدولية، أرقام فقط)',CFG.whatsapp)+fld('so','حسابات التواصل: سطر لكل حساب، مثال: انستغرام | https://...',CFG.social.map(x=>x.name+' | '+x.url).join('\n'),4)+SV},
- faq(){dbody.innerHTML=fld('fq','سطر لكل سؤال: السؤال | الجواب',CFG.faq.map(q=>q[0]+' | '+q[1]).join('\n'),12)+SV},
- reviews(){dbody.innerHTML='<p class="note">أضف آراء عملاء حقيقيين فقط. السطر: الاسم | عدد النجوم | التعليق</p>'+fld('rv','',CFG.reviews.map(r=>r.name+' | '+r.stars+' | '+r.text).join('\n'),10)+SV}
-};
 function refresh(){if(!D.classList.contains('open'))return;
  if(!admin){dbody.innerHTML='<p>هذه اللوحة للمالك فقط. افتح الرابط من حسابك على claude.ai.</p>';return}
  document.querySelectorAll('#dtab button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===tab));T[tab]()}
@@ -452,17 +426,6 @@ function collect(){const g=id=>{const x=$('#'+id);return x?x.value.trim():null},
  if(tab==='contact'){CFG.whatsapp=(g('wa')||'').replace(/\D/g,'');CFG.social=L('so').map(l=>{const[a,...b]=l.split('|');return{name:a.trim(),url:b.join('|').trim()}}).filter(x=>/^https?:\/\//.test(x.url))}
  if(tab==='faq')CFG.faq=L('fq').map(l=>{const[a,...b]=l.split('|');return[a.trim(),b.join('|').trim()]}).filter(q=>q[1]);
  if(tab==='reviews')CFG.reviews=L('rv').map(l=>{const p=l.split('|');return{name:p[0].trim(),stars:Math.min(5,Math.max(1,parseInt(p[1])||5)),text:p.slice(2).join('|').trim()}}).filter(r=>r.text)}
-
-
-function refresh(){if(!D.classList.contains('open'))return;
- if(!admin){dbody.innerHTML='<p>هذه اللوحة للمالك فقط. افتح الرابط من حسابك على claude.ai.</p>';return}
- document.querySelectorAll('#dtab button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===tab));T[tab]()}
-function route(){const on=location.hash==='#dashboard';D.classList.toggle('open',on);document.body.style.overflow=on?'hidden':'';if(on){msg('');refresh()}}
-function collect(){const g=id=>{const x=$('#'+id);return x?x.value.trim():null},L=id=>(g(id)||'').split('\n').map(x=>x.trim()).filter(Boolean),P=CFG.product;
- if(tab==='contact'){CFG.whatsapp=(g('wa')||'').replace(/\D/g,'');CFG.social=L('so').map(l=>{const[a,...b]=l.split('|');return{name:a.trim(),url:b.join('|').trim()}}).filter(x=>/^https?:\/\//.test(x.url))}
- if(tab==='faq')CFG.faq=L('fq').map(l=>{const[a,...b]=l.split('|');return[a.trim(),b.join('|').trim()]}).filter(q=>q[1]);
- if(tab==='reviews')CFG.reviews=L('rv').map(l=>{const p=l.split('|');return{name:p[0].trim(),stars:Math.min(5,Math.max(1,parseInt(p[1])||5)),text:p.slice(2).join('|').trim()}}).filter(r=>r.text)}
-
 function showProdForm(idx){
   if(!CFG.products)CFG.products=[];
   const p=idx>=0?CFG.products[idx]:{};
