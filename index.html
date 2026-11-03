@@ -46,7 +46,7 @@ button.g{background:var(--gold);color:#1a1405}
   <div class="row"><h1 style="flex:3">لوحة تحكم غيوم</h1><button id="out" style="flex:1">خروج</button></div>
   <div class="card row"><input id="shop" readonly dir="ltr" aria-label="رابط المتجر"><button id="cp" class="g" style="flex:0 0 auto">نسخ رابط المتجر</button></div>
   <div class="tabs" id="tabs">
-    <button data-t="orders">الطلبات</button><button data-t="product">المنتج والصور</button><button data-t="contact">التواصل</button><button data-t="faq">الأسئلة</button><button data-t="reviews">الآراء</button>
+    <button data-t="orders">الطلبات</button><button data-t="products">المنتجات</button><button data-t="contact">التواصل</button><button data-t="faq">الأسئلة</button><button data-t="reviews">الآراء</button>
   </div>
   <div id="msg" role="status"></div>
   <div id="body"></div>
@@ -74,6 +74,7 @@ async function api(action, data) {
 async function loadCfg() {
   const r = await fetch(API); CFG = await r.json();
   CFG.product = CFG.product || {};
+  CFG.products = CFG.products || [];
 }
 
 if (!API) $('#urlBox').hidden = false;
@@ -104,10 +105,8 @@ function show(t) {
   if (t === 'orders') {
     B.innerHTML = `<p class="note">${ORDERS.length} طلب. <button id="rf">تحديث</button></p>` + (ORDERS.length ? ORDERS.map(o => `<div class="card"><b>${esc(o.code)}</b> — ${esc(o.name)} — <a href="tel:${esc(o.phone)}" dir="ltr" style="color:var(--gold2)">${esc(o.phone)}</a><br>${esc(o.city)}، ${esc(o.address)}<br>${esc(o.product)}${o.qty ? ' × ' + esc(o.qty) : ''}${o.notes ? '<br>ملاحظات: ' + esc(o.notes) : ''}<br><span class="note">${o.time ? new Date(o.time).toLocaleString('ar') : ''}</span><br><a href="https://wa.me/${wa(o.phone)}" target="_blank" rel="noopener" style="color:var(--gold2)">مراسلة العميل عبر واتساب</a><select data-c="${esc(o.code)}" style="margin-top:8px">${ST.map(s => `<option${s === o.status ? ' selected' : ''}>${s}</option>`).join('')}</select></div>`).join('') : '<div class="card note">لا توجد طلبات بعد.</div>');
   }
-  if (t === 'product') {
-    B.innerHTML = '<div class="card">' + F('n', 'اسم المنتج', P.name || '') + F('d', 'الوصف', P.desc || '', 4) + `<div class="r2"><div>${F('p', 'السعر (مع العملة)', P.price || '')}</div><div>${F('o', 'السعر قبل الخصم', P.oldPrice || '')}</div></div>` + F('op', 'الخيارات: سطر لكل خيار، مثال: اللون: أخضر، أسود', (P.options || []).map(x => x.label + ': ' + x.values.join('، ')).join('\n'), 3) + '</div>' +
-      `<div class="card"><b>صور المنتج</b><div class="th">${(P.images || []).map((u, i) => `<div><img src="${esc(u)}" alt=""><b data-r="${i}">×</b></div>`).join('')}</div><input type="file" id="up" accept="image/*"><p class="note">اختر صورة وتُرفع وتُحفظ مباشرة.</p>` +
-      `<b>صورة الواجهة الرئيسية</b>${CFG.heroImage ? `<div class="th"><div><img src="${esc(CFG.heroImage)}" alt=""></div></div>` : ''}<input type="file" id="uh" accept="image/*"></div>` + SAVE;
+  if (t === 'products') {
+    renderProducts();
   }
   if (t === 'contact') B.innerHTML = '<div class="card">' + F('w', 'رقم واتساب (دولي، أرقام فقط، مثال 2189XXXXXXXX)', CFG.whatsapp || '') + F('s', 'حسابات التواصل: سطر لكل حساب، مثال: انستغرام | https://...', (CFG.social || []).map(x => x.name + ' | ' + x.url).join('\n'), 4) + '</div>' + SAVE;
   if (t === 'faq') B.innerHTML = '<div class="card"><p class="note">اتركه فارغاً لاستخدام الأسئلة الافتراضية.</p>' + F('f', 'سطر لكل سؤال: السؤال | الجواب', (CFG.faq || []).map(q => q[0] + ' | ' + q[1]).join('\n'), 12) + '</div>' + SAVE;
@@ -125,6 +124,37 @@ function productSettings() {
 }
 async function run(fn, ok) { try { msg('جارٍ الحفظ...'); await fn(); msg(ok || 'تم الحفظ. قد يلزم تحديث الموقع بضع ثوانٍ.'); } catch (e) { msg(e.message === 'auth' ? 'انتهت الجلسة، أعد الدخول.' : 'تعذّر الحفظ.'); } }
 
+function renderProducts() {
+  const B = $('#body'), prods = CFG.products || [];
+  B.innerHTML = `<p><button class="g" id="addProd">+ إضافة منتج</button></p>` +
+    (prods.length ? prods.map((p, i) => `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><b>${esc(p.name || 'منتج بلا اسم')}</b><span>${esc(p.price || '')}</span><div style="display:flex;gap:6px"><button data-pe="${i}">تعديل</button><button data-pd="${i}">حذف</button></div></div></div>`).join('') : '<div class="card note">لا توجد منتجات. اضغط + إضافة منتج.</div>') +
+    '<div id="pf"></div>';
+}
+function prodForm(idx) {
+  const p = idx >= 0 ? (CFG.products || [])[idx] : {};
+  $('#pf').innerHTML = `<div class="card"><b>${idx < 0 ? 'منتج جديد' : 'تعديل المنتج'}</b>` +
+    F('pfn', 'اسم المنتج', p.name || '') + F('pfd', 'الوصف', p.desc || '', 3) +
+    `<div class="r2"><div>${F('pfp', 'السعر', p.price || '')}</div><div>${F('pfo', 'السعر قبل الخصم', p.oldPrice || '')}</div></div>` +
+    F('pfi', 'روابط الصور (سطر لكل صورة)', (p.images || []).join('\n'), 3) +
+    F('pfop', 'الخيارات: سطر لكل خيار، مثال: اللون: أخضر، أسود', (p.options || []).map(x => x.label + ': ' + x.values.join('، ')).join('\n'), 3) +
+    `<input type="hidden" id="pfi2" value="${idx}"><p style="display:flex;gap:8px"><button class="g" id="pfsave">حفظ المنتج</button><button id="pfcan">إلغاء</button></p></div>`;
+}
+async function saveProduct() {
+  const idx = parseInt($('#pfi2').value);
+  const g2 = id => ($('#' + id) ? $('#' + id).value.trim() : '');
+  const L2 = id => g2(id).split('\n').map(x => x.trim()).filter(Boolean);
+  const p = {
+    name: g2('pfn'), desc: g2('pfd'), price: g2('pfp'), oldPrice: g2('pfo'),
+    images: L2('pfi').slice(0, 20),
+    options: L2('pfop').map(l => { const [a, ...b] = l.split(':'); return { label: a.trim(), values: (b.join(':') || '').split(/[،,]/).map(x => x.trim()).filter(Boolean) }; }).filter(o => o.values.length)
+  };
+  if (!p.name) { msg('يرجى كتابة اسم المنتج.'); return; }
+  if (!CFG.products) CFG.products = [];
+  if (idx < 0) CFG.products.push(p); else CFG.products[idx] = p;
+  await run(() => api('saveProducts', { products: CFG.products }), 'تم حفظ المنتج.');
+  renderProducts();
+}
+
 function shrink(file) {
   return new Promise((res, rej) => {
     const im = new Image(), u = URL.createObjectURL(file);
@@ -137,6 +167,11 @@ $('#body').addEventListener('click', async e => {
   const t = e.target;
   if (t.id === 'rf') { await run(async () => { ORDERS = (await api('orders')).orders; show('orders'); }, 'تم التحديث.'); }
   if (t.dataset && t.dataset.r !== undefined) { productSettings(); CFG.product.images.splice(+t.dataset.r, 1); await run(async () => { await api('save', { settings: productSettings() }); show('product'); }); }
+  if (t.id === 'addProd') { prodForm(-1); return; }
+  if (t.dataset && t.dataset.pe !== undefined) { prodForm(+t.dataset.pe); return; }
+  if (t.dataset && t.dataset.pd !== undefined) { if (confirm('حذف هذا المنتج نهائيًا؟')) { CFG.products.splice(+t.dataset.pd, 1); await run(() => api('saveProducts', { products: CFG.products }), 'تم حذف المنتج.'); renderProducts(); } return; }
+  if (t.id === 'pfsave') { await saveProduct(); return; }
+  if (t.id === 'pfcan') { $('#pf').innerHTML = ''; return; }
   if (t.id !== 'save') return;
   if (tab === 'product') await run(() => api('save', { settings: productSettings() }));
   if (tab === 'contact') { CFG.whatsapp = g('w').replace(/\D/g, ''); CFG.social = lines('s').map(l => { const a = l.split('|'); return { name: a[0].trim(), url: (a[1] || '').trim() }; }).filter(x => /^https?:\/\//.test(x.url)); await run(() => api('save', { settings: { 'واتساب': CFG.whatsapp, 'حسابات التواصل': CFG.social.map(x => x.name + ' | ' + x.url).join('\n') } })); }

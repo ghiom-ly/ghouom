@@ -360,7 +360,7 @@ function render(){
 }
 render();/* رابط Google Apps Script: الصقه هنا بين علامتي الاقتباس */
 const SHEET_URL="https://script.google.com/macros/s/AKfycbwTg5OSUzLBomNAfxii1Rx0CRSPK7HT98Brkk-9E3W0XwAYNHJOjwkzcZ-FgEBm1WNN/exec";
-if(SHEET_URL){const lb=document.getElementById('lbar');if(lb)lb.className='lbar run';fetch(SHEET_URL).then(r=>r.json()).then(o=>{CFG={...CFG,...o,product:{...CFG.product,...(o.product||{})}};render()}).catch(()=>{}).finally(()=>{if(lb){lb.className='lbar done';setTimeout(()=>{lb.style.opacity='0'},400)}})}
+if(SHEET_URL){const lb=document.getElementById('lbar');if(lb)lb.className='lbar run';fetch(SHEET_URL).then(r=>r.json()).then(o=>{CFG={...CFG,...o,product:{...CFG.product,...(o.product||{})},products:o.products||(CFG.products&&CFG.products.length?CFG.products:[])};if(!CFG.products||!CFG.products.length){const P={...CFG.product};if(P.name&&P.name!=='اسم المنتج')CFG.products=[P];}render()}).catch(()=>{}).finally(()=>{if(lb){lb.className='lbar done';setTimeout(()=>{lb.style.opacity='0'},400)}})}
 /* order modal */
 const modal=$('#modal'),form=$('#form');let lastFocus,summary='';
 function openM(){lastFocus=document.activeElement;const P=CFG.product,ch=Object.entries(chosen);$('#pr').value=P.name+(ch.length?' ('+ch.map(([k,v])=>k+': '+v).join('، ')+')':'');form.hidden=false;$('#ok').hidden=true;$('#err').textContent='';modal.classList.add('open');setTimeout(()=>$('#n').focus(),50)}
