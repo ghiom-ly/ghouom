@@ -3,7 +3,7 @@
 // 3) Deploy > New deployment > Web app (Execute as: Me, Who has access: Anyone) وانسخ رابط /exec
 // بعد أي تعديل لاحق: Deploy > Manage deployments > Edit > New version
 
-const ADMIN_PASSWORD = '';   // مثال: 'Ghiom#2026-xyz'  (إن بقيت فارغة تتعطل لوحة التحكم)
+const ADMIN_PASSWORD = '12345678';   // مثال: 'Ghiom#2026-xyz'  (إن بقيت فارغة تتعطل لوحة التحكم)
 const SS = SpreadsheetApp.getActiveSpreadsheet();
 const KEYS = ['الاسم', 'الوصف', 'السعر', 'السعر قبل الخصم', 'واتساب', 'صورة الواجهة', 'الصور', 'الخيارات', 'حسابات التواصل'];
 const safe = v => { v = String(v == null ? '' : v); return /^[=+\-@]/.test(v) ? "'" + v : v; };
