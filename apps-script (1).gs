@@ -4,8 +4,9 @@
 // 3) Deploy > New deployment > Web app (Execute as: Me, Who has access: Anyone) وانسخ رابط /exec
 // بعد أي تعديل لاحق: Deploy > Manage deployments > Edit > New version
 
-// ⚠️ مهم: غيِّر كلمة السر قبل النشر — '12345678' ضعيفة جداً
-const ADMIN_PASSWORD = '12345678';
+// كلمة السر محفوظة في Script Properties (غير مرئية في الكود)
+// لضبطها: Project Settings > Script Properties > أضف: ADMIN_PASSWORD = كلمة سرك
+const ADMIN_PASSWORD = PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD') || '';
 
 const SS = SpreadsheetApp.getActiveSpreadsheet();
 const KEYS = ['الاسم', 'الوصف', 'السعر', 'السعر قبل الخصم', 'واتساب', 'صورة الواجهة', 'الصور', 'الخيارات', 'حسابات التواصل'];
